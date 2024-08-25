@@ -20,7 +20,7 @@ import { sendCaltenEmail } from "./utils/emailSender.js";
 dotenv.config();
 
 const app = express();
-const port = 3001;
+const port = 3002;
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json()); //use is for midleware
 app.use(cors());
@@ -32,6 +32,19 @@ app.post(
     const incomingExposedSchema = req.body;
     const internalSchema = mapToInternalSchemaPaymentReference(incomingExposedSchema);
     const stringName = internalSchema.name.replace(/ /g, '%20');
+    const tokenOptions = {
+      method: 'POST',
+      url: 'https://dev-ueci4k8o513pdzlh.us.auth0.com/oauth/token',
+      headers: { 'content-type': 'application/json' },
+      data: {
+        client_id: process.env.AUTH0_CLIENT_ID,
+        client_secret: process.env.AUTH0_CLIENT_SECRET,
+        audience: "https://api1.calten.com",
+        grant_type: "client_credentials"
+      }
+    };
+    const tokenResponse = await axios(tokenOptions);
+    const token = tokenResponse.data.access_token;
     const payload = {
       reference: 21,
       concept: `${internalSchema.numberOfTickets} boletos rifa Calten`,
@@ -42,7 +55,10 @@ app.post(
     }
     const api = process.env.CALTENAPI + constants.caltenApis.createRequest;
     const {data} = await axios.post(api, payload, {
-      headers: { 'Content-type': 'application/json; charset=UTF-8',}
+      headers: 
+      { 'Content-type': 'application/json; charset=UTF-8',
+        'authorization': `Bearer ${token}`
+      }
     }).then( val =>  {
       console.log(`success creating the payment`); 
       return val;
